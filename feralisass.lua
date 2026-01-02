@@ -1,5 +1,5 @@
--- feralisass.lua (Optimized for Solara)
-print("Attempting to load feralisass.lua...")
+-- feralisass.lua (SOLARA DIRECT EXECUTE VERSION)
+print("--- [feralisass] INITIALIZING ---")
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,37 +11,47 @@ local LocalPlayer = Players.LocalPlayer
 local CONFIG = {
     speed = 21,
     jumpPower = 92,
-    maxHealth = 154,
     currentWeaponIndex = 1
 }
 
--- Safe Remote Check (Solara can hang on WaitForChild)
-local remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
+-- REMOTE CHECKING (Look at F9 Console if this fails)
+print("[feralisass] Looking for Remotes folder...")
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+
 if not remotes then
-    warn("CRITICAL: Remotes folder not found! Game might have updated.")
+    -- Try to find any folder that might contain events if "Remotes" is the wrong name
+    warn("[feralisass] 'Remotes' folder not found. Searching for alternatives...")
+    remotes = ReplicatedStorage:FindFirstChildOfClass("Folder") 
+end
+
+if not remotes then
+    warn("[feralisass] ERROR: No remote folder found in ReplicatedStorage.")
     return
 end
 
-local damageEvent = remotes:WaitForChild("DamageEvent", 5)
+local damageEvent = remotes:FindFirstChild("DamageEvent") or remotes:FindFirstChildWhichIsA("RemoteEvent")
+
 if not damageEvent then
-    warn("CRITICAL: DamageEvent not found!")
-    return
+    warn("[feralisass] ERROR: Could not find a Damage Remote Event.")
+else
+    print("[feralisass] Found Remote: " .. damageEvent.Name)
 end
 
 local weapons = {
-    {name = "Sword", damage = 15, cooldown = 0.8, range = 12},
-    {name = "Bow", damage = 10, cooldown = 1.2, range = 45},
-    {name = "Staff", damage = 25, cooldown = 2.5, range = 25}
+    {name = "Sword", damage = 15, cooldown = 0.8, range = 15},
+    {name = "Bow", damage = 10, cooldown = 1.2, range = 50},
+    {name = "Staff", damage = 25, cooldown = 2.5, range = 30}
 }
 
 local lastAttack = 0
 
--- Function to get target
+-- Combat Logic
 local function getTarget()
-    local closest, dist = nil, 20 -- Max distance to look for
-    local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
+    local closest, dist = nil, 30
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
     
-    if not myPos then return nil end
+    local myPos = character.HumanoidRootPart.Position
 
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
@@ -55,48 +65,37 @@ local function getTarget()
     return closest, dist
 end
 
--- Weapon Logic
-local function useWeapon()
+local function attack()
     local weapon = weapons[CONFIG.currentWeaponIndex]
     if (tick() - lastAttack) < weapon.cooldown then return end
     
     local target, distance = getTarget()
-    
     if target and distance <= weapon.range then
         lastAttack = tick()
-        -- Use pcall so if the server rejects the remote, the script doesn't crash
-        pcall(function()
-            damageEvent:FireServer(target, weapon.damage, CONFIG.currentWeaponIndex)
-        end)
-        print("feralisass | Hit: " .. target.Name)
+        damageEvent:FireServer(target, weapon.damage, CONFIG.currentWeaponIndex)
+        print("[feralisass] Hit: " .. target.Name .. " (" .. weapon.name .. ")")
     end
 end
 
--- Input Detection
+-- Controls
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
-    
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.E then
-        useWeapon()
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        attack()
     end
-    
-    if input.KeyCode == Enum.KeyCode.One then CONFIG.currentWeaponIndex = 1 print("Equipped: Sword") end
-    if input.KeyCode == Enum.KeyCode.Two then CONFIG.currentWeaponIndex = 2 print("Equipped: Bow") end
-    if input.KeyCode == Enum.KeyCode.Three then CONFIG.currentWeaponIndex = 3 print("Equipped: Staff") end
 end)
 
--- Character Setup (Modified for Solara reliability)
-local function applyStats(char)
-    if not char then return end
-    local hum = char:WaitForChild("Humanoid", 5)
+-- Stats Apply
+local function apply()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid", 10)
     if hum then
         hum.WalkSpeed = CONFIG.speed
         hum.JumpPower = CONFIG.jumpPower
-        print("Stats Applied: Speed " .. CONFIG.speed)
+        print("[feralisass] Stats Applied Successfully.")
     end
 end
 
-LocalPlayer.CharacterAdded:Connect(applyStats)
-if LocalPlayer.Character then applyStats(LocalPlayer.Character) end
-
-print("feralisass.lua LOADED successfully!")
+apply()
+LocalPlayer.CharacterAdded:Connect(apply)
+print("--- [feralisass] LOADED SUCCESSFULLY ---")
