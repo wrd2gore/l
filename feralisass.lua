@@ -1,132 +1,93 @@
--- Deobfuscated with MoonSec V3 Deobfuscator Tool
--- Original script had 3 lines and 3886323 characters
+-- feralisass.lua
+-- Enhanced Weapon & Combat System
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
--- Main configuration
+-- Configuration
 local CONFIG = {
     speed = 21,
     jumpPower = 92,
     maxHealth = 154,
     respawnTime = 5,
-    debugMode = false
+    currentWeaponIndex = 1
 }
 
--- Event connections
-local remotes = ReplicatedStorage:WaitForChild("Remotes")
+-- Locating Remotes (Based on deobfuscated structure)
+local remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
+if not remotes then
+    warn("Remotes folder not found. Script might not function on this game.")
+    return
+end
+
 local damageEvent = remotes:WaitForChild("DamageEvent")
-local healEvent = remotes:WaitForChild("HealEvent")
-local respawnEvent = remotes:WaitForChild("RespawnEvent")
-
--- Weapon definitions extracted from obfuscated table
 local weapons = {
-    {
-        name = "Sword",
-        damage = 15,
-        cooldown = 0.8,
-        range = 4
-    },
-    {
-        name = "Bow",
-        damage = 10,
-        cooldown = 1.2,
-        range = 30
-    },
-    {
-        name = "Staff",
-        damage = 25,
-        cooldown = 2.5,
-        range = 15
-    }
+    {name = "Sword", damage = 15, cooldown = 0.8, range = 12},
+    {name = "Bow", damage = 10, cooldown = 1.2, range = 45},
+    {name = "Staff", damage = 25, cooldown = 2.5, range = 25}
 }
 
--- Utility functions
-local function calculateDamage(baseDamage, distance, player)
-    local character = player.Character
-    if not character then return 0 end
-    
-    local modifier = 1
-    
-    -- Apply damage falloff based on distance
-    if distance > 10 then
-        modifier = modifier * (1 - (distance - 10) * 0.02)
-    end
-    
-    -- Apply random variation
-    modifier = modifier * (math.random() * 0.2 + 0.9)
-    
-    return math.floor(baseDamage * modifier)
-end
+local lastAttack = 0
 
--- Player handling
-local function setupPlayer(player)
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    
-    humanoid.WalkSpeed = CONFIG.speed
-    humanoid.JumpPower = CONFIG.jumpPower
-    humanoid.MaxHealth = CONFIG.maxHealth
-    humanoid.Health = CONFIG.maxHealth
-    
-    -- Setup damage handling
-    damageEvent.OnServerEvent:Connect(function(playerWhoFired, targetPlayer, damageAmount, weaponIndex)
-        if playerWhoFired ~= player then return end
-        if not targetPlayer or not targetPlayer.Character then return end
-        
-        local weapon = weapons[weaponIndex or 1]
-        if not weapon then return end
-        
-        local targetHumanoid = targetPlayer.Character:FindFirstChild("Humanoid")
-        if targetHumanoid then
-            local playerPosition = player.Character.PrimaryPart.Position
-            local targetPosition = targetPlayer.Character.PrimaryPart.Position
-            local distance = (playerPosition - targetPosition).Magnitude
-            
-            if distance <= weapon.range then
-                local finalDamage = calculateDamage(damageAmount or weapon.damage, distance, targetPlayer)
-                targetHumanoid.Health = math.max(0, targetHumanoid.Health - finalDamage)
-                
-                -- Fire client effects
-                remotes.DamageEffect:FireClient(targetPlayer, finalDamage)
-            end
-        end
-    end)
-}
-
--- Initialize for existing players
-for _, player in ipairs(Players:GetPlayers()) do
-    setupPlayer(player)
-end
-
--- Setup for new players
-Players.PlayerAdded:Connect(setupPlayer)
-
--- Game loop (extracted from obfuscated while loop)
-RunService.Heartbeat:Connect(function(deltaTime)
-    for _, player in ipairs(Players:GetPlayers()) do
-        local character = player.Character
-        if character and character:FindFirstChild("Humanoid") then
-            -- Update player status
-            -- This section was heavily obfuscated and may not be 100% accurate
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid.Health <= 0 then
-                -- Handle player death
-                if not character:FindFirstChild("Respawning") then
-                    local respawning = Instance.new("BoolValue")
-                    respawning.Name = "Respawning"
-                    respawning.Parent = character
-                    
-                    -- Respawn player after delay
-                    task.delay(CONFIG.respawnTime, function()
-                        respawnEvent:FireClient(player)
-                    end)
-                end
+-- Helper: Find nearest target
+local function getTarget()
+    local closest, dist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local mag = (LocalPlayer.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+            if mag < dist then
+                closest = p
+                dist = mag
             end
         end
     end
+    return closest, dist
+end
+
+-- Weapon Execution Logic
+local function useWeapon()
+    local weapon = weapons[CONFIG.currentWeaponIndex]
+    if tick() - lastAttack < weapon.cooldown then return end
+    
+    local target, distance = getTarget()
+    
+    if target and distance <= weapon.range then
+        lastAttack = tick()
+        -- Fires the event found in your deobfuscated code
+        damageEvent:FireServer(target, weapon.damage, CONFIG.currentWeaponIndex)
+        
+        -- Optional: Simple visual indicator
+        print("[feralisass] Hit " .. target.Name .. " with " .. weapon.name)
+    end
+end
+
+-- Input Handling
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    
+    -- Attack (Left Click or E)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.E then
+        useWeapon()
+    end
+    
+    -- Switch Weapons (1, 2, 3)
+    if input.KeyCode == Enum.KeyCode.One then CONFIG.currentWeaponIndex = 1 print("Weapon: Sword") end
+    if input.KeyCode == Enum.KeyCode.Two then CONFIG.currentWeaponIndex = 2 print("Weapon: Bow") end
+    if input.KeyCode == Enum.KeyCode.Three then CONFIG.currentWeaponIndex = 3 print("Weapon: Staff") end
 end)
 
--- Extra note: Some weapon system functions couldn't be fully deobfuscated
--- Original code had additional logic in lines 1-1
+-- Apply Character Buffs
+local function applyStats()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    hum.WalkSpeed = CONFIG.speed
+    hum.JumpPower = CONFIG.jumpPower
+end
+
+LocalPlayer.CharacterAdded:Connect(applyStats)
+applyStats()
+
+print("feralisass.lua loaded successfully.")
