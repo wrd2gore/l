@@ -1,4 +1,4 @@
--- feralisass.lua (V24 - AERIAL BYPASS & SMOOTH SANTA FARM)
+-- feralisass.lua (V25 - SOLARA STABILITY & SMOOTH BYPASS)
 
 -- [[ OWNER CHECK & CLEAN-UP ]] --
 local OWNER_NAME = "felthorrified"
@@ -6,11 +6,10 @@ local IsOwner = (game.Players.LocalPlayer.Name == OWNER_NAME)
 
 if _G.FeralisassRunning then
     _G.FeralisassCleanup = true
-    if game.CoreGui:FindFirstChild("Feralisass_V24") then
-        game.CoreGui:FindFirstChild("Feralisass_V24"):Destroy()
+    if game.CoreGui:FindFirstChild("Feralisass_V25") then
+        game.CoreGui:FindFirstChild("Feralisass_V25"):Destroy()
     end
-    if _G.FlyPlatform then _G.FlyPlatform:Destroy() end
-    task.wait(0.3)
+    task.wait(0.5)
 end
 _G.FeralisassRunning = true
 _G.FeralisassCleanup = false
@@ -25,18 +24,18 @@ local Camera = workspace.CurrentCamera
 -- [[ CONFIGURATION ]] --
 local CONFIG = {
     FlyEnabled = false,
-    FlySpeed = 30, -- Safe glide speed
+    FlySpeed = 28, 
     
     SantaFarm = false,
-    SantaDistance = 18, -- Distance to stay near the Sleigh
+    SantaDistance = 18,
     
     GeppoBypass = true,
-    GeppoInterval = 2, -- Reset strikes every 2 seconds
+    GeppoRate = 1.5, -- How many seconds between Sky Walks
     
     KillAuraEnabled = false,
-    AuraRange = 65,
-    AuraDelay = 0.45,
-    CurrentTool = nil, -- Auto-detected (Sword/Fruit)
+    AuraRange = 70,
+    AuraDelay = 0.5,
+    CurrentTool = nil,
     
     HitboxEnabled = false,
     HitboxSize = 15,
@@ -45,56 +44,57 @@ local CONFIG = {
     MenuVisible = true
 }
 
--- [[ LOGGING SYSTEM ]] --
+-- [[ REMOTES ]] --
+local Events = ReplicatedStorage:WaitForChild("Events", 15)
+local ClientEffect = Events and Events:FindFirstChild("ClientEffect")
+local SkillRemote = Events and Events:FindFirstChild("skillManager")
+
+-- [[ LOGGING ]] --
 local function AddLog(msg)
     local timestamp = os.date("%X")
     local entry = "[" .. timestamp .. "] " .. msg
     print("[FERALISASS] " .. entry)
     if not IsOwner then return end
     pcall(function()
-        local box = game.CoreGui.Feralisass_V24.MainFrame.LogScroll.LogTextBox
-        box.Text = entry .. "\n" .. box.Text
-        game.CoreGui.Feralisass_V24.MainFrame.LogScroll.CanvasSize = UDim2.new(0, 0, 0, box.TextBounds.Y + 20)
+        local gui = game.CoreGui:FindFirstChild("Feralisass_V25")
+        if gui then
+            local box = gui.MainFrame.LogScroll.LogTextBox
+            box.Text = entry .. "\n" .. box.Text
+        end
     end)
 end
 
--- [[ AUTO-ITEM DETECTION ]] --
-local function UpdateCombatTool()
-    local tool = nil
-    for _, v in pairs(LocalPlayer.Character:GetChildren()) do
-        if v:IsA("Tool") and not v.Name:lower():find("plank") then tool = v break end
+-- [[ AUTO-ITEM SCANNER ]] --
+local function GetWeapon()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    
+    -- Check hand
+    for _, tool in pairs(char:GetChildren()) do
+        if tool:IsA("Tool") and not tool.Name:lower():find("plank") then return tool end
     end
-    if not tool then
-        for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do
-            if v:IsA("Tool") and not v.Name:lower():find("plank") then tool = v break end
-        end
+    -- Check backpack
+    for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and not tool.Name:lower():find("plank") then return tool end
     end
-    if tool and (not CONFIG.CurrentTool or CONFIG.CurrentTool.Name ~= tool.Name) then
-        CONFIG.CurrentTool = tool
-        AddLog("Combat Tool: " .. tool.Name)
-    end
+    return nil
 end
-
--- [[ REMOTES ]] --
-local Events = ReplicatedStorage:WaitForChild("Events", 10)
-local ClientEffect = Events:FindFirstChild("ClientEffect")
-local SkillRemote = Events:FindFirstChild("skillManager")
 
 -- [[ GUI CONSTRUCTION ]] --
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "Feralisass_V24"
+ScreenGui.Name = "Feralisass_V25"
 
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, IsOwner and 620 or 310, 0, 580)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 35)
-Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Title.Text = "FERALISASS V24 | GEPPO SKILL BYPASS"
+Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Title.Text = "FERALISASS V25 | STABILITY FIX"
 Title.TextColor3 = Color3.new(1, 1, 1)
 
 local function CreateControl(name, yPos, configKey, adjustKey, placeholder)
@@ -117,19 +117,19 @@ local function CreateControl(name, yPos, configKey, adjustKey, placeholder)
     box.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     box.PlaceholderText = placeholder
     box.Text = tostring(CONFIG[adjustKey])
-    box.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+    box.TextColor3 = Color3.new(1, 1, 1)
     box.BorderSizePixel = 0
     box.FocusLost:Connect(function()
         CONFIG[adjustKey] = tonumber(box.Text) or box.Text
     end)
 end
 
-CreateControl("Smooth Glide Fly", 50, "FlyEnabled", "FlySpeed", "Speed (Safe: 30)")
-CreateControl("Santa Aerial Farm", 120, "SantaFarm", "SantaDistance", "Distance Below (18)")
-CreateControl("Geppo Reset (Secs)", 190, "GeppoBypass", "GeppoInterval", "Pulse Every (2)")
-CreateControl("Auto Item Aura", 260, "KillAuraEnabled", "AuraDelay", "Aura Delay (0.45)")
+CreateControl("Smooth Glide Fly", 50, "FlyEnabled", "FlySpeed", "Speed (Safe 28)")
+CreateControl("Santa Smooth Farm", 120, "SantaFarm", "SantaDistance", "Height (18)")
+CreateControl("Geppo Reset (Secs)", 190, "GeppoBypass", "GeppoRate", "Pulse Rate (1.5)")
+CreateControl("Auto-Weapon Aura", 260, "KillAuraEnabled", "AuraDelay", "Hit Speed (0.5)")
 CreateControl("Hitbox Expander", 330, "HitboxEnabled", "HitboxSize", "Size (Max 20)")
-CreateControl("Present Sniper", 400, "PresentFarm", "AuraRange", "Collect Range")
+CreateControl("Present Collector", 400, "PresentFarm", "AuraRange", "Scan Range")
 
 if IsOwner then
     local LogScroll = Instance.new("ScrollingFrame", MainFrame)
@@ -140,25 +140,25 @@ if IsOwner then
     LogTextBox.Name = "LogTextBox"
     LogTextBox.Size = UDim2.new(1, -10, 1, 5000)
     LogTextBox.BackgroundTransparency = 1
-    LogTextBox.TextColor3 = Color3.fromRGB(0, 255, 100)
+    LogTextBox.TextColor3 = Color3.fromRGB(0, 255, 120)
     LogTextBox.TextXAlignment = Enum.TextXAlignment.Left
     LogTextBox.TextYAlignment = Enum.TextYAlignment.Top
-    LogTextBox.Text = "--- BYPASS CONSOLE READY ---"
+    LogTextBox.Text = "--- GEPPO LOGS READY ---"
     LogTextBox.MultiLine, LogTextBox.ClearTextOnFocus, LogTextBox.TextEditable = true, false, false
 end
 
--- [[ THE BYPASS & MOVEMENT ENGINE ]] --
+-- [[ MOVEMENT ENGINE ]] --
 task.spawn(function()
     local lastGeppo = 0
     while not _G.FeralisassCleanup do
         local dt = RunService.Heartbeat:Wait()
         local char = LocalPlayer.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
-        if not root then continue end
+        local hum = char and char:FindFirstChild("Humanoid")
+        
+        if not root or not hum then continue end
 
         local targetPos = nil
-        
-        -- SANTA DETECTION
         if CONFIG.SantaFarm then
             local santa = workspace:FindFirstChild("NPCs") and workspace.NPCs:FindFirstChild("Santa's Sleigh")
             if santa and santa:FindFirstChild("HumanoidRootPart") then
@@ -166,30 +166,29 @@ task.spawn(function()
             end
         end
 
-        -- GEPPO SKILL BYPASS (Every 2 seconds)
+        -- GEPPO BYPASS (Spams Geppo State to reset strikes)
         if CONFIG.GeppoBypass and (CONFIG.FlyEnabled or CONFIG.SantaFarm) then
-            if tick() - lastGeppo > CONFIG.GeppoInterval then
+            if tick() - lastGeppo > CONFIG.GeppoRate then
                 pcall(function()
                     SkillRemote:FireServer("Sky Walk", 20, false)
                     SkillRemote:FireServer("Sky Walk", 0.2)
+                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
                 end)
-                char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                 lastGeppo = tick()
-                AddLog("Sent Sky Walk Spoof.")
+                AddLog("Geppo Pulse Sent.")
             end
         end
 
-        -- SMOOTH GLIDE (Prevents Y-Axis Kick)
+        -- GLIDE MOVEMENT
         if targetPos or CONFIG.FlyEnabled then
             if targetPos then
-                local direction = (targetPos - root.Position).Unit
-                local distance = (targetPos - root.Position).Magnitude
-                if distance > 1 then
-                    -- Move at exactly CONFIG.FlySpeed studs per second
-                    root.CFrame = root.CFrame + (direction * math.min(distance, CONFIG.FlySpeed * dt))
+                local dir = (targetPos - root.Position).Unit
+                local dist = (targetPos - root.Position).Magnitude
+                if dist > 0.5 then
+                    -- STRICT SPEED: Moves at exactly CONFIG.FlySpeed studs per second
+                    root.CFrame = root.CFrame + (dir * math.min(dist, CONFIG.FlySpeed * dt))
                 end
-                -- Match Santa's velocity to stay stable
-                root.Velocity = Vector3.new(0, 0.1, 0)
+                root.Velocity = Vector3.new(0, 0.1, 0) -- Kill gravity
             elseif CONFIG.FlyEnabled then
                 local dir = Vector3.new(0,0,0)
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + Camera.CFrame.LookVector end
@@ -203,34 +202,26 @@ task.spawn(function()
     end
 end)
 
--- [[ AURA & LOOT ENGINE ]] --
+-- [[ AURA ENGINE ]] --
 task.spawn(function()
     while not _G.FeralisassCleanup do
         task.wait(CONFIG.AuraDelay)
-        UpdateCombatTool()
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not root or not CONFIG.KillAuraEnabled or not CONFIG.CurrentTool then continue end
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not char or not root or not CONFIG.KillAuraEnabled then continue end
 
-        -- Present Auto-Farm
-        if CONFIG.PresentFarm then
-            for _, obj in pairs(workspace:GetChildren()) do
-                if (obj.Name:lower():find("present") or obj.Name:lower():find("gift")) and obj:IsA("BasePart") then
-                    if (obj.Position - root.Position).Magnitude < 300 then
-                        root.CFrame = obj.CFrame + Vector3.new(0, 3, 0)
-                        task.wait(0.2)
+        local weapon = GetWeapon()
+        if weapon then
+            if weapon.Parent ~= char then LocalPlayer.Humanoid:EquipTool(weapon) end
+            
+            local npcFolder = workspace:FindFirstChild("NPCs")
+            if npcFolder then
+                for _, npc in pairs(npcFolder:GetChildren()) do
+                    local hrp = npc:FindFirstChild("HumanoidRootPart")
+                    if hrp and (hrp.Position - root.Position).Magnitude < CONFIG.AuraRange then
+                        if CONFIG.HitboxEnabled then hrp.Size = Vector3.new(CONFIG.HitboxSize, CONFIG.HitboxSize, CONFIG.HitboxSize) end
+                        pcall(function() ClientEffect:FireServer("HitEffect", tick(), weapon.Name, npc) end)
                     end
-                end
-            end
-        end
-
-        -- Attack NPCs
-        local npcFolder = workspace:FindFirstChild("NPCs")
-        if npcFolder then
-            for _, npc in pairs(npcFolder:GetChildren()) do
-                local hrp = npc:FindFirstChild("HumanoidRootPart")
-                if hrp and (hrp.Position - root.Position).Magnitude < CONFIG.AuraRange then
-                    if CONFIG.HitboxEnabled then hrp.Size = Vector3.new(CONFIG.HitboxSize, CONFIG.HitboxSize, CONFIG.HitboxSize) end
-                    pcall(function() ClientEffect:FireServer("HitEffect", tick(), CONFIG.CurrentTool.Name, npc) end)
                 end
             end
         end
@@ -238,4 +229,4 @@ task.spawn(function()
 end)
 
 UserInputService.InputBegan:Connect(function(i) if i.KeyCode == Enum.KeyCode.RightControl then MainFrame.Visible = not MainFrame.Visible end end)
-AddLog("V24 Loaded | Skywalk Bypass Active.")
+AddLog("V25 Active. Solara Mode Enabled.")
