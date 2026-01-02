@@ -1,4 +1,4 @@
--- feralisass.lua (V2 - FLY & KILL AURA & HITBOX)
+-- feralisass.lua (V3 - FULL UI CONTROL)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -12,69 +12,94 @@ local CONFIG = {
     FlySpeed = 50,
     HitboxEnabled = false,
     HitboxSize = 50,
-    KillAura = false,
-    CombatRange = 100,
+    KillAuraEnabled = false,
+    AuraRange = 100,
+    MenuVisible = true
 }
 
--- [[ REMOTES ]] --
-local EventFolder = ReplicatedStorage:WaitForChild("Events", 10)
-local AttackRemote = EventFolder:FindFirstChild("ClientEffect") -- Based on your log
+-- [[ REMOTE SETUP ]] --
+local ClientEffect = ReplicatedStorage:WaitForChild("Events"):WaitForChild("ClientEffect")
 
--- [[ GUI SYSTEM ]] --
+-- [[ GUI CONSTRUCTION ]] --
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-local MainFrame = Instance.new("Frame", ScreenGui)
-local Title = Instance.new("TextLabel", MainFrame)
+ScreenGui.Name = "Feralisass_V3"
 
-MainFrame.Size = UDim2.new(0, 220, 0, 350)
-MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 250, 0, 400)
+MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "FERALISASS V2"
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Title.Text = "FERALISASS V3 - WRD2GORE"
 Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 14
 
-local function CreateToggle(name, pos, callback)
+-- UI Helper Function for Toggles
+local function CreateToggle(name, yPos, configKey)
     local btn = Instance.new("TextButton", MainFrame)
-    btn.Size = UDim2.new(0.8, 0, 0, 30)
-    btn.Position = UDim2.new(0.1, 0, 0, pos)
-    btn.Text = name .. ": OFF"
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.Position = UDim2.new(0.05, 0, 0, yPos)
     btn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+    btn.Text = name .. ": OFF"
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    
     btn.MouseButton1Click:Connect(function()
-        local state = callback()
-        btn.Text = name .. ": " .. (state and "ON" or "OFF")
-        btn.BackgroundColor3 = state and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(150, 50, 50)
+        CONFIG[configKey] = not CONFIG[configKey]
+        btn.Text = name .. ": " .. (CONFIG[configKey] and "ON" or "OFF")
+        btn.BackgroundColor3 = CONFIG[configKey] and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(150, 50, 50)
     end)
-    return btn
 end
 
-local function CreateInput(placeholder, pos, callback)
+-- UI Helper Function for Text Inputs
+local function CreateInput(placeholder, yPos, configKey)
+    local label = Instance.new("TextLabel", MainFrame)
+    label.Size = UDim2.new(0.4, 0, 0, 30)
+    label.Position = UDim2.new(0.05, 0, 0, yPos)
+    label.Text = placeholder .. ":"
+    label.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+    label.BackgroundTransparency = 1
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
     local box = Instance.new("TextBox", MainFrame)
-    box.Size = UDim2.new(0.8, 0, 0, 30)
-    box.Position = UDim2.new(0.1, 0, 0, pos)
-    box.PlaceholderText = placeholder
-    box.Text = ""
+    box.Size = UDim2.new(0.45, 0, 0, 30)
+    box.Position = UDim2.new(0.5, 0, 0, yPos)
+    box.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    box.Text = tostring(CONFIG[configKey])
+    box.TextColor3 = Color3.new(1, 1, 1)
+    
     box.FocusLost:Connect(function()
-        callback(tonumber(box.Text))
+        local num = tonumber(box.Text)
+        if num then 
+            CONFIG[configKey] = num 
+            print("[feralisass] Set " .. configKey .. " to " .. num)
+        end
     end)
 end
 
--- GUI Elements
-CreateToggle("Fly", 50, function() CONFIG.FlyEnabled = not CONFIG.FlyEnabled return CONFIG.FlyEnabled end)
-CreateInput("Fly Speed (1-200)", 90, function(val) if val then CONFIG.FlySpeed = val end end)
-CreateToggle("Big Hitbox", 140, function() CONFIG.HitboxEnabled = not CONFIG.HitboxEnabled return CONFIG.HitboxEnabled end)
-CreateToggle("Kill Aura", 180, function() CONFIG.KillAura = not CONFIG.KillAura return CONFIG.KillAura end)
+-- Add Menu Items (Y-Positioning)
+CreateToggle("Enable Fly", 50, "FlyEnabled")
+CreateInput("Fly Speed", 90, "FlySpeed")
 
-local Info = Instance.new("TextLabel", MainFrame)
-Info.Size = UDim2.new(1, 0, 0, 50)
-Info.Position = UDim2.new(0, 0, 0.8, 0)
-Info.Text = "RightCtrl to Hide\nFly Speed: " .. CONFIG.FlySpeed
-Info.TextColor3 = Color3.new(0.8, 0.8, 0.8)
-Info.BackgroundTransparency = 1
+CreateToggle("Enable Hitbox", 135, "HitboxEnabled")
+CreateInput("Hitbox Size", 175, "HitboxSize")
 
--- [[ FLY LOGIC ]] --
+CreateToggle("Kill Aura", 220, "KillAuraEnabled")
+CreateInput("Aura Range", 260, "AuraRange")
+
+local HelpText = Instance.new("TextLabel", MainFrame)
+HelpText.Size = UDim2.new(1, 0, 0, 60)
+HelpText.Position = UDim2.new(0, 0, 0.82, 0)
+HelpText.Text = "Press 'RightCtrl' to hide menu\nFly: W,A,S,D\nTargets: Workspace.NPCs"
+HelpText.TextColor3 = Color3.fromRGB(150, 150, 150)
+HelpText.BackgroundTransparency = 1
+HelpText.TextSize = 12
+
+-- [[ FLYING ENGINE ]] --
 local bv, bg
 RunService.RenderStepped:Connect(function()
     local char = LocalPlayer.Character
@@ -87,6 +112,7 @@ RunService.RenderStepped:Connect(function()
             bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
             bg = Instance.new("BodyGyro", root)
             bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bg.D = 100 -- Smoothness
         end
         bg.CFrame = Camera.CFrame
         local dir = Vector3.new(0,0,0)
@@ -101,42 +127,42 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [[ HITBOX & KILL AURA LOGIC ]] --
-task.spawn(function()
-    while task.wait(0.5) do
-        if CONFIG.HitboxEnabled then
-            -- Specifically target NPCs folder
-            local npcFolder = workspace:FindFirstChild("NPCs")
-            if npcFolder then
-                for _, npc in pairs(npcFolder:GetChildren()) do
-                    local hrp = npc:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        hrp.Size = Vector3.new(CONFIG.HitboxSize, CONFIG.HitboxSize, CONFIG.HitboxSize)
-                        hrp.Transparency = 0.7
-                        hrp.CanCollide = false
-                    end
+-- [[ HITBOX & KILL AURA ENGINE ]] --
+RunService.Heartbeat:Connect(function()
+    local npcFolder = workspace:FindFirstChild("NPCs")
+    if not npcFolder then return end
+
+    for _, npc in pairs(npcFolder:GetChildren()) do
+        local hrp = npc:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            -- 1. Hitbox Logic
+            if CONFIG.HitboxEnabled then
+                hrp.Size = Vector3.new(CONFIG.HitboxSize, CONFIG.HitboxSize, CONFIG.HitboxSize)
+                hrp.Transparency = 0.8
+                hrp.CanCollide = false
+            else
+                hrp.Size = Vector3.new(2, 2, 1) -- Reset to default
+                hrp.Transparency = 1
+            end
+
+            -- 2. Kill Aura Logic
+            if CONFIG.KillAuraEnabled then
+                local dist = (hrp.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if dist < CONFIG.AuraRange then
+                    -- FIRE REMOTE BASED ON YOUR LOG: [1]=Effect, [2]=Time, [3]=Weapon, [4]=Target
+                    ClientEffect:FireServer("HitEffect", tick(), "Sword", npc)
                 end
             end
         end
     end
 end)
 
-RunService.Heartbeat:Connect(function()
-    if CONFIG.KillAura and AttackRemote then
-        local npcFolder = workspace:FindFirstChild("NPCs")
-        if not npcFolder then return end
-
-        for _, npc in pairs(npcFolder:GetChildren()) do
-            local hrp = npc:FindFirstChild("HumanoidRootPart")
-            if hrp and (hrp.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < CONFIG.CombatRange then
-                -- Matching your Remote Spy: [1]=Effect, [2]=Time, [3]=Weapon, [4]=Target
-                AttackRemote:FireServer("HitEffect", tick(), "Sword", npc)
-            end
-        end
+-- GUI Visibility Toggle
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        CONFIG.MenuVisible = not CONFIG.MenuVisible
+        MainFrame.Visible = CONFIG.MenuVisible
     end
 end)
 
--- Hide Menu
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.RightControl then MainFrame.Visible = not MainFrame.Visible end
-end)
+print("--- feralisass V3 LOADED ---")
